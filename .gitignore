@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.wrangler/
+.dev.vars
+.env
+.env.*
+.DS_Store
+*.log
+coverage/
+tmp/
+.idea/
+.claude
