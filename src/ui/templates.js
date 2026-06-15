@@ -173,11 +173,11 @@ export function renderHtml(PAGE_SIZE, RULES_PAGE_SIZE) {
                     <div class="flex items-center gap-2 mb-2">
                       <span class="text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-widest">邮件原文</span>
                     </div>
-                    <div v-if="item.raw_text" class="text-[12px] bg-slate-100 dark:bg-white/[0.04] border border-slate-200 dark:border-white/5 text-slate-700 dark:text-slate-200 rounded-lg p-3 whitespace-pre-wrap font-mono pr-12 shadow-inner">{{ item.raw_text }}</div>
+                    <div v-if="rawTextCache[item.message_id]" class="text-[12px] bg-slate-100 dark:bg-white/[0.04] border border-slate-200 dark:border-white/5 text-slate-700 dark:text-slate-200 rounded-lg p-3 whitespace-pre-wrap font-mono pr-12 shadow-inner">{{ rawTextCache[item.message_id] }}</div>
                     <div v-else class="text-[11px] text-slate-400 dark:text-slate-600">— 无原文内容</div>
-                    <button v-if="item.raw_text"
+                    <button v-if="rawTextCache[item.message_id]"
                       class="absolute top-8 right-2 p-1.5 rounded-md text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-white/10 opacity-0 group-hover/copy-raw:opacity-100 transition-all border border-transparent hover:border-slate-200 dark:hover:border-white/10 font-medium text-[10px] tracking-wider uppercase"
-                      @click.stop="copyContent(item.raw_text, 'raw-' + item.message_id)"
+                      @click.stop="copyContent(rawTextCache[item.message_id], 'raw-' + item.message_id)"
                     >{{ copyStatus['raw-' + item.message_id] ? '已复制' : '复制' }}</button>
                   </div>
                 </div>
@@ -448,6 +448,7 @@ export function renderHtml(PAGE_SIZE, RULES_PAGE_SIZE) {
             newWhitelist: "", activeTab: "emails",
             adminToken: "", adminError: "", poller: null,
             expandedResults: {}, expandedRawTexts: {}, copyStatus: {}, isDark: true,
+            rawTextCache: {}, // 缓存已加载的邮件原文（按 message_id）
             apiActive: true,
             availableDomains: [], filterDomain: "",
             filterToAddress: "", addressSearchTimer: null
@@ -568,8 +569,18 @@ export function renderHtml(PAGE_SIZE, RULES_PAGE_SIZE) {
           async nextWhitelistPage() { if (this.whitelistPage < this.whitelistTotalPages) { this.whitelistPage += 1; await this.loadWhitelistData(); } },
           async prevWhitelistPage() { if (this.whitelistPage > 1) { this.whitelistPage -= 1; await this.loadWhitelistData(); } },
           async loadEmailDetail(messageId) {
-            const payload = await this.requestJson("/admin/emails/" + encodeURIComponent(messageId));
-            return payload?.data || payload || null;
+            try {
+              const res = await fetch("/admin/emails/" + encodeURIComponent(messageId), {
+                headers: this.adminHeaders()
+              });
+              if (!res.ok) { console.error("loadEmailDetail HTTP error:", res.status); return null; }
+              const payload = await res.json();
+              // handleAdminEmailDetail 返回 json(row)，即 { code, data: row }
+              return payload?.data || null;
+            } catch (err) {
+              console.error("loadEmailDetail failed:", err);
+              return null;
+            }
           },
           async openEmailBody(messageId) {
             const win = window.open("", "_blank", "width=980,height=760");
@@ -642,15 +653,14 @@ export function renderHtml(PAGE_SIZE, RULES_PAGE_SIZE) {
           },
           toggleResult(messageId) { this.expandedResults[messageId] = !this.expandedResults[messageId]; },
           toggleRawText(messageId) {
-            if (!this.expandedRawTexts[messageId]) {
+            this.expandedRawTexts[messageId] = !this.expandedRawTexts[messageId];
+            if (this.expandedRawTexts[messageId] && !this.rawTextCache[messageId]) {
               this.loadEmailDetail(messageId).then(row => {
-                if (row) {
-                  const item = this.items.find(i => i.message_id === messageId);
-                  if (item) item.raw_text = row.raw_text;
+                if (row && row.raw_text) {
+                  this.rawTextCache[messageId] = row.raw_text;
                 }
               });
             }
-            this.expandedRawTexts[messageId] = !this.expandedRawTexts[messageId];
           },
           async copyContent(text, messageId) {
             try {
