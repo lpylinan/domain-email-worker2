@@ -132,7 +132,7 @@ export function renderHtml(PAGE_SIZE, RULES_PAGE_SIZE) {
             </div>
           </div>
           <div class="p-5 space-y-3">
-            <div class="grid grid-cols-[1.5fr,1.2fr,1.2fr,0.8fr] gap-4 px-3 text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-widest font-medium">
+            <div class="grid grid-cols-[1.5fr,1.2fr,1.2fr,1fr] gap-4 px-3 text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-widest font-medium">
               <div>主题</div>
               <div>发件人</div>
               <div>收件人</div>
@@ -140,7 +140,7 @@ export function renderHtml(PAGE_SIZE, RULES_PAGE_SIZE) {
             </div>
             <div v-if="items.length===0" class="min-h-[240px] flex items-center justify-center text-xs text-slate-400">暂无邮件记录</div>
             <div v-for="item in items" :key="item.message_id" class="p-3.5 rounded-xl border border-slate-100 dark:border-white/5 bg-slate-50/50 dark:bg-white/[0.02] hover:bg-white dark:hover:bg-white/[0.04] hover:shadow-sm dark:hover:shadow-none transition-all duration-200 cursor-pointer group" @click="toggleResult(item.message_id)">
-              <div class="grid grid-cols-[1.5fr,1.2fr,1.2fr,0.8fr] gap-4 items-center">
+              <div class="grid grid-cols-[1.5fr,1.2fr,1.2fr,1fr] gap-4 items-center">
                 <div class="min-w-0">
                   <button
                     type="button"
@@ -150,8 +150,17 @@ export function renderHtml(PAGE_SIZE, RULES_PAGE_SIZE) {
                 </div>
                 <div class="min-w-0 text-[11px] text-slate-500 dark:text-slate-400 truncate">{{ item.from_address }}</div>
                 <div class="min-w-0 text-[11px] text-slate-500 dark:text-slate-400 truncate">{{ item.to_address }}</div>
-                <div class="text-[11px] text-slate-500 dark:text-slate-400 text-right tabular-nums">{{ formatTime(item.received_at) }}</div>
-                <div v-if="!hasResult(item.extracted_json) || expandedResults[item.message_id]" class="col-span-4 mt-3">
+                <div class="flex items-center justify-end gap-2">
+                  <span class="text-[11px] text-slate-500 dark:text-slate-400 tabular-nums">{{ formatTime(item.received_at) }}</span>
+                  <button
+                    type="button"
+                    class="shrink-0 p-1 rounded-md text-slate-400 dark:text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 transition-all opacity-0 group-hover:opacity-100"
+                    :class="expandedRawTexts[item.message_id] ? 'text-indigo-600 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-500/10 opacity-100' : ''"
+                    title="查看原文"
+                    @click.stop="toggleRawText(item.message_id)"
+                  ><svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg></button>
+                </div>
+                <div v-if="(hasResult(item.extracted_json) && expandedResults[item.message_id]) || expandedRawTexts[item.message_id]" class="col-span-4 mt-3 space-y-3">
                   <div v-if="hasResult(item.extracted_json) && expandedResults[item.message_id]" class="relative group/copy" @click.stop>
                     <div
                       class="text-[12px] bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/20 text-indigo-700 dark:text-indigo-200 rounded-lg p-3 whitespace-pre-wrap font-mono pr-12 shadow-inner"
@@ -161,6 +170,19 @@ export function renderHtml(PAGE_SIZE, RULES_PAGE_SIZE) {
                       @click.stop="copyContent(formatResult(item.extracted_json), item.message_id)"
                     >{{ copyStatus[item.message_id] ? '已复制' : '复制' }}</button>
                   </div>
+                  <div v-if="expandedRawTexts[item.message_id]" class="relative group/copy-raw" @click.stop>
+                    <div class="flex items-center gap-2 mb-2">
+                      <span class="text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-widest">邮件原文</span>
+                    </div>
+                    <div v-if="item.raw_text" class="text-[12px] bg-slate-100 dark:bg-white/[0.04] border border-slate-200 dark:border-white/5 text-slate-700 dark:text-slate-200 rounded-lg p-3 whitespace-pre-wrap font-mono pr-12 shadow-inner">{{ item.raw_text }}</div>
+                    <div v-else class="text-[11px] text-slate-400 dark:text-slate-600">— 无原文内容</div>
+                    <button v-if="item.raw_text"
+                      class="absolute top-8 right-2 p-1.5 rounded-md text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-white/10 opacity-0 group-hover/copy-raw:opacity-100 transition-all border border-transparent hover:border-slate-200 dark:hover:border-white/10 font-medium text-[10px] tracking-wider uppercase"
+                      @click.stop="copyContent(item.raw_text, 'raw-' + item.message_id)"
+                    >{{ copyStatus['raw-' + item.message_id] ? '已复制' : '复制' }}</button>
+                  </div>
+                </div>
+                <div v-if="!hasResult(item.extracted_json) && !expandedRawTexts[item.message_id]" class="col-span-4 mt-3">
                   <div v-if="!hasResult(item.extracted_json)" class="text-[11px] text-slate-400 dark:text-slate-600">— 未提取到规则内容</div>
                 </div>
               </div>
@@ -426,7 +448,7 @@ export function renderHtml(PAGE_SIZE, RULES_PAGE_SIZE) {
             whitelistItems: [], whitelistPage: 1, whitelistTotal: 0,
             newWhitelist: "", activeTab: "emails",
             adminToken: "", adminError: "", poller: null,
-            expandedResults: {}, copyStatus: {}, isDark: true,
+            expandedResults: {}, expandedRawTexts: {}, copyStatus: {}, isDark: true,
             apiActive: true,
             availableDomains: [], filterDomain: "",
             filterToAddress: "", addressSearchTimer: null
@@ -620,6 +642,17 @@ export function renderHtml(PAGE_SIZE, RULES_PAGE_SIZE) {
             }
           },
           toggleResult(messageId) { this.expandedResults[messageId] = !this.expandedResults[messageId]; },
+          toggleRawText(messageId) {
+            if (!this.expandedRawTexts[messageId]) {
+              this.loadEmailDetail(messageId).then(row => {
+                if (row) {
+                  const item = this.items.find(i => i.message_id === messageId);
+                  if (item) item.raw_text = row.raw_text;
+                }
+              });
+            }
+            this.expandedRawTexts[messageId] = !this.expandedRawTexts[messageId];
+          },
           async copyContent(text, messageId) {
             try {
               await navigator.clipboard.writeText(text);
