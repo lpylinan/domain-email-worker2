@@ -174,7 +174,8 @@ export function renderHtml(PAGE_SIZE, RULES_PAGE_SIZE) {
                       <span class="text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-widest">邮件原文</span>
                     </div>
                     <div v-if="rawTextCache[item.message_id]" class="text-[12px] bg-slate-100 dark:bg-white/[0.04] border border-slate-200 dark:border-white/5 text-slate-700 dark:text-slate-200 rounded-lg p-3 whitespace-pre-wrap font-mono pr-12 shadow-inner">{{ rawTextCache[item.message_id] }}</div>
-                    <div v-else class="text-[11px] text-slate-400 dark:text-slate-600">— 无原文内容</div>
+                    <div v-else-if="item.message_id in rawTextCache" class="text-[11px] text-slate-400 dark:text-slate-600">— 无原文内容</div>
+                    <div v-else class="text-[11px] text-slate-400 dark:text-slate-500">加载中…</div>
                     <button v-if="rawTextCache[item.message_id]"
                       class="absolute top-8 right-2 p-1.5 rounded-md text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-white/10 opacity-0 group-hover/copy-raw:opacity-100 transition-all border border-transparent hover:border-slate-200 dark:hover:border-white/10 font-medium text-[10px] tracking-wider uppercase"
                       @click.stop="copyContent(rawTextCache[item.message_id], 'raw-' + item.message_id)"
@@ -654,11 +655,12 @@ export function renderHtml(PAGE_SIZE, RULES_PAGE_SIZE) {
           toggleResult(messageId) { this.expandedResults[messageId] = !this.expandedResults[messageId]; },
           toggleRawText(messageId) {
             this.expandedRawTexts[messageId] = !this.expandedRawTexts[messageId];
-            if (this.expandedRawTexts[messageId] && !this.rawTextCache[messageId]) {
+            if (this.expandedRawTexts[messageId] && !(messageId in this.rawTextCache)) {
+              this.rawTextCache[messageId] = null; // 标记为加载中，避免重复请求
               this.loadEmailDetail(messageId).then(row => {
-                if (row && row.raw_text) {
-                  this.rawTextCache[messageId] = row.raw_text;
-                }
+                // 优先 raw_text，fallback 到 raw_html
+                const text = (row && row.raw_text) ? row.raw_text : (row && row.raw_html) ? row.raw_html : '';
+                this.rawTextCache[messageId] = text;
               });
             }
           },
