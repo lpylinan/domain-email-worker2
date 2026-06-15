@@ -154,11 +154,10 @@ export function renderHtml(PAGE_SIZE, RULES_PAGE_SIZE) {
                   <span class="text-[11px] text-slate-500 dark:text-slate-400 tabular-nums">{{ formatTime(item.received_at) }}</span>
                   <button
                     type="button"
-                    class="shrink-0 p-1 rounded-md text-slate-400 dark:text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 transition-all opacity-0 group-hover:opacity-100"
-                    :class="expandedRawTexts[item.message_id] ? 'text-indigo-600 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-500/10 opacity-100' : ''"
-                    title="查看原文"
+                    class="shrink-0 px-1.5 py-0.5 rounded text-[10px] font-medium border transition-all"
+                    :class="expandedRawTexts[item.message_id] ? 'text-indigo-600 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-500/10 border-indigo-200 dark:border-indigo-500/30' : 'text-slate-400 dark:text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 border-transparent hover:border-indigo-200 dark:hover:border-indigo-500/30'"
                     @click.stop="toggleRawText(item.message_id)"
-                  ><svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg></button>
+                  >原文</button>
                 </div>
                 <div v-if="(hasResult(item.extracted_json) && expandedResults[item.message_id]) || expandedRawTexts[item.message_id]" class="col-span-4 mt-3 space-y-3">
                   <div v-if="hasResult(item.extracted_json) && expandedResults[item.message_id]" class="relative group/copy" @click.stop>
@@ -570,7 +569,7 @@ export function renderHtml(PAGE_SIZE, RULES_PAGE_SIZE) {
           async prevWhitelistPage() { if (this.whitelistPage > 1) { this.whitelistPage -= 1; await this.loadWhitelistData(); } },
           async loadEmailDetail(messageId) {
             const payload = await this.requestJson("/admin/emails/" + encodeURIComponent(messageId));
-            return payload?.data || null;
+            return payload?.data || payload || null;
           },
           async openEmailBody(messageId) {
             const win = window.open("", "_blank", "width=980,height=760");
