@@ -22,6 +22,29 @@ async function parseIncomingEmail(message) {
 }
 
 /**
+ * 从 HTML 中提取纯文本（剥离标签、解码实体）
+ */
+function stripHtml(html) {
+  return html
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")   // 移除 <style> 块
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")  // 移除 <script> 块
+    .replace(/<br\s*\/?>/gi, "\n")                     // <br> → 换行
+    .replace(/<\/p>/gi, "\n")                          // </p> → 换行
+    .replace(/<\/tr>/gi, "\n")                         // </tr> → 换行
+    .replace(/<\/div>/gi, "\n")                        // </div> → 换行
+    .replace(/<[^>]+>/g, "")                           // 移除所有剩余标签
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)))
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, h) => String.fromCharCode(parseInt(h, 16)))
+    .replace(/\n{3,}/g, "\n\n")                       // 合并多余空行
+    .trim();
+}
+
+/**
  * 对邮件内容应用解析规则
  */
 function applyRules(content, sender, rules) {
@@ -82,9 +105,9 @@ export async function processIncomingEmail(message, env, ctx) {
   const whitelist = await loadWhitelist(env.DB);
   if (!senderInWhitelist(parsed.from, whitelist)) return null;
 
-  // 2. 匹配规则提取内容
+  // 2. 匹配规则提取内容（优先纯文本，HTML 需先剥离标签）
   const rules = await loadRules(env.DB);
-  const content = parsed.text || parsed.html || "";
+  const content = parsed.text || (parsed.html ? stripHtml(parsed.html) : "");
   const matches = applyRules(content, parsed.from, rules);
 
   // 3. 异步持久化存储
